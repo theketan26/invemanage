@@ -5,3 +5,4 @@ edition = "2021"
 
 [dependencies]
 rocket = { version="0.5.1", features=["http2", "json", "secrets"] }
+tokio = { version="1.38.1", features=["full"] }
