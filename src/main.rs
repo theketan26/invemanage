@@ -1,10 +1,13 @@
-extern crate dotenv_codegen;
-use dotenv_codegen::dotenv;
-
 #[macro_use] extern crate rocket;
-use mongodb::{bson::doc, options::{ClientOptions, ServerApi, ServerApiVersion}, Client};
-
+use dotenv_codegen::dotenv;
+use futures::StreamExt;
 use rocket::get;
+
+use tokio;
+use mongodb::{bson::{doc, oid::ObjectId}, options::{ClientOptions, ServerApi, ServerApiVersion}, Client, Collection, Cursor};
+
+mod repo;
+mod models;
 
 
 #[get("/greet")]
@@ -15,19 +18,16 @@ fn hello() -> String {
 
 #[tokio::main]
 async fn main() {
-    let mut client_options = ClientOptions::parse(dotenv!("MONGO_DB")).await.unwrap();
+    let repo = repo
+        ::Repo
+        ::new(dotenv!("MONGO_DB"))
+        .await;
 
-    let server_api = ServerApi::builder().version(ServerApiVersion::V1).build();
-    client_options.server_api = Some(server_api);
-    
-    let client = Client::with_options(client_options).unwrap();
-    
-    client
-        .database("admin")
-        .run_command(doc! {"ping": 1})
-        .await
-        .unwrap();
-    println!("Pinged your deployment. You successfully connected to MongoDB!");
+    let test_data = repo.test_impl().await;
+
+    let test_vec: Vec<Result<models::Test, mongodb::error::Error>> = test_data.collect().await;
+
+    println!("{:?}", test_vec);
 
     let _ = rocket::build()
         .mount("/api", routes![hello])
